@@ -48,7 +48,7 @@ build <- function(package_list="packages.txt",
     fetch_package_sources(pkgs)
   }
   update_package_sources(pkgs)
-  if (install) {
+  if (install || install_local) {
     lib <- if (install_local) tempfile("library") else NULL
     install_deps(pkgs, lib)
   }
