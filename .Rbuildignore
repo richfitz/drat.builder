@@ -1,0 +1,7 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.travis\.yml$
+^ignore$
+^Makefile$
+^notes.md$
+^drat.builder_.*\.tar.gz$
