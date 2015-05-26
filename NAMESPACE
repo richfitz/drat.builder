@@ -3,7 +3,6 @@
 export(build)
 export(install_script)
 importFrom(crayon,yellow)
-importFrom(devtools,build)
 importFrom(docopt,docopt)
 importFrom(drat,insertPackage)
 importFrom(git2r,fetch)

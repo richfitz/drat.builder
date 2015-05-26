@@ -174,7 +174,6 @@ install_deps <- function(packages, lib=NULL) {
 }
 
 ## should only build if we have a different version to last time.
-##' @importFrom devtools build
 build_packages <- function(packages) {
   status <- status_load(".")
   for (p in rownames(packages)) {
@@ -398,8 +397,17 @@ status_line <- function(p) {
        str=p[["str"]])
 }
 
-do_build <- function(p) {
-  devtools::build(package_dir(p))
+do_build <- function(p, args=NULL) {
+  if (is.null(args)) {
+    args <- "--no-manual"
+  }
+  R <- file.path(R.home("bin"), "R")
+  ok <- system2(R, c("--vanilla",
+                     "CMD", "build", package_dir(p),
+                     args))
+  if (!identical(as.character(ok), "0")) {
+    stop(sprintf("Command failed with code %s", ok), call.=FALSE)
+  }
 }
 
 ## Utilities:
