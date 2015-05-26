@@ -1,4 +1,5 @@
 ## TODO: Find all the "." bits and replace with something sane
+##    - dirname(packages) would work most places
 
 ##' @importFrom docopt docopt
 main <- function(args=commandArgs(TRUE)) {
@@ -207,8 +208,23 @@ clean_packages <- function(packages) {
 ## TODO: Version of this for starting from a fresh commit
 ##' @importFrom drat insertPackage
 update_drat <- function(packages, commit=TRUE) {
-  init_drat(".")
-  repo <- git2r::repository(".")
+  path <- "."
+  if (file.exists(".git")) {
+    repo <- git2r::repository(path)
+  } else {
+    ## NOTE: This duplicates some behaviour in drat::initRepo()
+    repo <- git2r::init(path)
+    readme <- file.path(path, "README.md")
+    writeLines("# `drat`", readme)
+    git2r::add(repo, "README.md") # TODO: not file.path
+    cmt <- git2r::commit(repo, "Initial Commit")
+    ## NOTE: arguably a git2r bug where checkout does not work if
+    ## there has not been a commit
+    git2r::checkout(repo, "gh-pages", create = TRUE)
+    git2r::branch_delete(git2r::branches(repo)[[2]])
+  }
+  init_drat(path)
+
   if (git_nstaged(repo) > 0L) {
     stop("Must have no staged files")
   }
@@ -324,7 +340,7 @@ get_deps <- function(path) {
 }
 
 status_filename <- function(path) {
-  if (path == ".") "drat.json" else file.path(path, "drat.json")
+  if (path == ".") "packages.json" else file.path(path, "packages.json")
 }
 
 status_load <- function(path) {
