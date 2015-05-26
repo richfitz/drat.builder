@@ -57,15 +57,23 @@ build <- function(package_list="packages.txt",
   update_drat(pkgs)
 }
 
-## TODO: This should probably also parse packages into directory /
-## name / url / etc.
-## TODO: check for duplicated repo names; might be a problem for
-## things that have multiple packages in one repo.
 read_packages <- function(package_list="packages.txt") {
   packages <- readLines(package_list)
   ## This trims blank lines and "comments"
   packages <- sub("\\s*#.*$", "", packages)
-  parse_packages(packages[!grepl("^\\s*$", packages)])
+  packages <- parse_packages(packages[!grepl("^\\s*$", packages)])
+  ## TODO: this is harsh for the rare cases where identically named
+  ## repositories have different packages, or where one repository has
+  ## multiple packages in different subdirectories.
+  if (any(duplicated(packages[, "repo"]))) {
+    dups <- packages[duplicated(packages[, "repo"]), "repo"]
+    dups <- packages[packages[, "repo"] %in% dups, ]
+    err <- paste(c("Duplicate repository names:",
+                   paste0(" - ", dups[order(dups[, "repo"]), "str"])),
+                 collapse="\n")
+    stop(err)
+  }
+  packages
 }
 
 fetch_package_sources <- function(packages) {
@@ -81,7 +89,7 @@ fetch_package <- function(p) {
   ## once they exist?
   dp <- package_repo_dir(p)
   if (file.exists(dp)) {
-    git2r::fetch(package_repo(p), "origin")
+    git2r::fetch(git2r::repository(package_repo_dir(p)), "origin")
   } else {
     git2r::clone(package_github_url(p), dp, TRUE)
   }
@@ -178,8 +186,9 @@ build_packages <- function(packages) {
 build_package <- function(p, status) {
   status_p <- status_line(p)
   name <- status_p$package
-  ok <- (file.exists(package_zip(p)) &&
-           identical(status[[name]]$sha, status_p$sha))
+
+  ok <- (file.exists(file.path("src/contrib", package_zip(p))) &&
+         identical(status[[name]]$sha, status_p$sha))
   if (!ok) {
     log("build", p[["str"]])
     do_build(p)
@@ -234,17 +243,23 @@ update_drat <- function(packages, commit=TRUE) {
 }
 
 update_drat1 <- function(p, commit) {
-  log("drat", p[["str"]])
   z <- package_zip(p)
+  zz <- file.path("packages", z)
+  if (!file.exists(zz)) {
+    ## No package was built, so we skip inserting.
+    return()
+  }
+  log("drat", p[["str"]])
   drat::insertPackage(file.path("packages", z), ".")
   repo <- git2r::repository(".")
-  git2r::add(repo, file.path("src/contrib", basename(z)))
+  git_add(repo, file.path("src/contrib", basename(z)), force=TRUE)
   if (commit) {
     if (git_nstaged(repo) > 0L) {
       log("commit", p[["str"]])
-      git2r::add(repo, "src/contrib/PACKAGES")
-      git2r::add(repo, "src/contrib/PACKAGES.gz")
-      git2r::add(repo, status_filename("."))
+      git_add(repo, "src/contrib/PACKAGES", force=TRUE)
+      git_add(repo, "src/contrib/PACKAGES.gz", force=TRUE)
+      ## git_add(repo, "src/.gitignore", force=TRUE)
+      git_add(repo, status_filename("."), force=TRUE)
       msg <- paste(package_name(p),
                    package_version(p),
                    substr(package_sha(p), 1, 7),
@@ -319,6 +334,21 @@ git_nstaged <- function(repo) {
   length(st$staged)
 }
 
+## Workaround for git2r::add not having a force argument.
+## Filed: https://github.com/ropensci/git2r/issues/148
+git_add <- function(repo, path, force) {
+  if (force) {
+    git <- Sys.which("git")
+    args <- c("-C", repo@path, "add", "--force", path)
+    ok <- system2(git, args)
+    if (ok != 0L) {
+      stop("Error adding file")
+    }
+  } else {
+    git2r::add(repo, path)
+  }
+}
+
 init_library <- function(path) {
   if (!file.exists(path)) {
     dir.create(path, FALSE, TRUE)
@@ -328,6 +358,10 @@ init_library <- function(path) {
 
 init_drat <- function(path) {
   dir.create(file.path(path, "src", "contrib"), FALSE, TRUE)
+  ## gitignore <- file.path(path, "src", ".gitignore")
+  ## if (!file.exists(gitignore)) {
+  ##   writeLines("!*.gz", gitignore)
+  ## }
 }
 
 ## From: http://stackoverflow.com/a/30225680
