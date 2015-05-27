@@ -1,6 +1,3 @@
-## TODO: Find all the "." bits and replace with something sane
-##    - dirname(packages) would work most places
-
 ##' @importFrom docopt docopt
 main <- function(args=commandArgs(TRUE)) {
   ## also support specific packages only?
@@ -73,6 +70,15 @@ read_packages <- function(package_list="packages.txt") {
                  collapse="\n")
     stop(err)
   }
+  path <- dirname(package_list)
+  packages_path <- file.path(path, "packages", packages[, "repo"])
+  i <- !is.na(packages[, "subdir"])
+  packages_path[i] <- file.path(packages_path[i], packages[i, "subdir"])
+  packages <- cbind(packages, path=unname(packages_path))
+
+  attr(packages, "path") <- path
+  attr(packages, "name") <- package_list
+
   packages
 }
 
@@ -96,7 +102,7 @@ fetch_package <- function(p) {
 }
 
 update_package_sources <- function(packages) {
-  unlink(package_dir(NULL), TRUE)
+  unlink("packages", TRUE)
   for (p in rownames(packages)) {
     update_package(packages[p, ])
   }
@@ -104,7 +110,7 @@ update_package_sources <- function(packages) {
 
 update_package <- function(p) {
   src  <- package_repo_dir(p)
-  dest <- package_dir(p)
+  dest <- p[["path"]]
 
   git2r::clone(src, dest, progress=FALSE)
   if (!is.na(p[["ref"]])) {
@@ -119,8 +125,7 @@ install_deps <- function(packages, lib=NULL) {
   ## hard to test.
 
   ## Get all deps:
-  deps <- unique(unlist(lapply(apply(packages, 1, package_dir),
-                               get_deps)))
+  deps <- unique(unlist(lapply(packages[, "path"], get_deps)))
   new_packages <- setdiff(deps, .packages(TRUE))
   if (length(new_packages) == 0L) {
     return()
@@ -160,7 +165,7 @@ install_deps <- function(packages, lib=NULL) {
   if (length(new_packages_drat) > 0L) {
     log("install", paste(new_packages_drat, collapse=" "))
     pkgs <- names(packages_drat)[match(new_packages_drat, packages_drat)]
-    pkgs_dirs <- apply(packages[pkgs, , drop=FALSE], 1, package_dir)
+    pkgs_dirs <- packages[pkgs, "path"]
     install.packages(pkgs_dirs, lib=lib, repos=NULL, type="source")
   }
 
@@ -175,7 +180,7 @@ install_deps <- function(packages, lib=NULL) {
 
 ## should only build if we have a different version to last time.
 build_packages <- function(packages) {
-  status <- status_load(".")
+  status <- status_load(packages)
   for (p in rownames(packages)) {
     build_package(packages[p, ], status)
   }
@@ -202,10 +207,10 @@ clean_packages <- function(packages) {
       file.remove(z)
     }
   }
-  status <- status_load(".")
+  status <- status_load(packages)
   names <- apply(packages, 1, package_name)
   status <- status[setdiff(names(status), names)]
-  status_save(".", status)
+  status_save(packages, status)
 }
 
 ## Optionally work on a branch here to make the work easy to roll
@@ -214,7 +219,7 @@ clean_packages <- function(packages) {
 ## TODO: Version of this for starting from a fresh commit
 ##' @importFrom drat insertPackage
 update_drat <- function(packages, commit=TRUE) {
-  path <- "."
+  path <- attr(packages, "path")
   if (file.exists(".git")) {
     repo <- git2r::repository(path)
   } else {
@@ -237,35 +242,36 @@ update_drat <- function(packages, commit=TRUE) {
     stop("Must have no staged files")
   }
   for (p in rownames(packages)) {
-    update_drat1(packages[p, ], commit)
+    update_drat1(packages[p, ], commit, packages)
   }
 }
 
-update_drat1 <- function(p, commit) {
+update_drat1 <- function(p, commit, packages) {
   status_p <- status_line(p)
   name <- status_p$package
-  status <- status_load(".")
+  status <- status_load(packages)
   update <- !identical(status[[name]]$sha, status_p$sha)
 
   if (!update) {
     return()
   }
   status[[name]] <- status_p
+  path <- attr(packages, "path")
 
   z <- package_zip(p)
   zz <- file.path("packages", z)
   log("drat", p[["str"]])
-  drat::insertPackage(file.path("packages", z), ".")
-  status_save(".", status)
+  drat::insertPackage(file.path("packages", z), path)
+  status_save(packages, status)
 
   if (commit) {
-    repo <- git2r::repository(".")
+    repo <- git2r::repository(path)
     git_add(repo, file.path("src/contrib", basename(z)), force=TRUE)
     if (git_nstaged(repo) > 0L) {
       log("commit", p[["str"]])
       git_add(repo, "src/contrib/PACKAGES", force=TRUE)
       git_add(repo, "src/contrib/PACKAGES.gz", force=TRUE)
-      git_add(repo, status_filename("."), force=TRUE)
+      git_add(repo, status_filename(packages), force=TRUE)
       msg <- paste(package_name(p),
                    package_version(p),
                    substr(package_sha(p), 1, 7),
@@ -283,18 +289,6 @@ log <- function(action, package) {
 
 ## All the package_ functions take a string from the packages.txt file
 ## and do something useful with them.
-## TODO: consider vectorising - helps the install code
-package_dir <- function(p) {
-  ret <- file.path(".", "packages")
-  if (!is.null(p)) {
-    ret <- file.path(ret, p[["repo"]])
-    if (!is.na(p[["subdir"]])) {
-      ret <- file.path(ret, p[["subdir"]])
-    }
-  }
-  ret
-}
-
 package_repo_dir <- function(p) {
   file.path("packages_src", p[["repo"]])
 }
@@ -304,19 +298,19 @@ package_zip <- function(p) {
 }
 
 package_version <- function(p) {
-  get_package_version(package_dir(p))
+  get_package_version(p[["path"]])
 }
 
 package_name <- function(p) {
-  get_package_name(package_dir(p))
+  get_package_name(p[["path"]])
 }
 
 package_sha <- function(p) {
-  git_sha(package_dir(p))
+  git_sha(p[["path"]])
 }
 
 package_repo <- function(p) {
-  git2r::repository(package_dir(p))
+  git2r::repository(p[["path"]])
 }
 
 package_github_url <- function(p) {
@@ -392,12 +386,12 @@ get_deps <- function(path) {
   val[val != "R"]
 }
 
-status_filename <- function(path) {
-  if (path == ".") "packages.json" else file.path(path, "packages.json")
+status_filename <- function(packages) {
+  paste0(sub("\\.txt$", "", attr(packages, "name")), ".json")
 }
 
-status_load <- function(path) {
-  file <- status_filename(path)
+status_load <- function(packages) {
+  file <- status_filename(packages)
   if (file.exists(file)) {
     jsonlite::fromJSON(readLines(file), TRUE, FALSE)
   } else {
@@ -405,8 +399,8 @@ status_load <- function(path) {
   }
 }
 
-status_save <- function(path, data) {
-  writeLines(jsonlite::toJSON(data), status_filename(path))
+status_save <- function(packages, data) {
+  writeLines(jsonlite::toJSON(data), status_filename(packages))
 }
 
 status_line <- function(p) {
@@ -421,7 +415,7 @@ do_build <- function(p, args=NULL) {
   if (is.null(args)) {
     args <- "--no-manual"
   }
-  path <- package_dir(p)
+  path <- p[["path"]]
   owd <- setwd(dirname(path))
   on.exit(setwd(owd))
   run_system(file.path(R.home("bin"), "R"),
