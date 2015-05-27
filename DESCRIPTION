@@ -10,3 +10,4 @@ Author: Rich FitzJohn
 Maintainer: Rich FitzJohn <rich.fitzjohn@gmail.com>
 Imports: crayon, docopt, drat, git2r, jsonlite
 Suggests: testthat
+SystemDependencies: git

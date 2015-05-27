@@ -89,7 +89,7 @@ fetch_package <- function(p) {
   ## once they exist?
   dp <- package_repo_dir(p)
   if (file.exists(dp)) {
-    git2r::fetch(git2r::repository(package_repo_dir(p)), "origin")
+    git_fetch_all(package_repo_dir(p))
   } else {
     git2r::clone(package_github_url(p), dp, TRUE)
   }
@@ -177,23 +177,21 @@ install_deps <- function(packages, lib=NULL) {
 build_packages <- function(packages) {
   status <- status_load(".")
   for (p in rownames(packages)) {
-    status <- build_package(packages[p, ], status)
+    build_package(packages[p, ], status)
   }
-  status_save(".", status)
 }
 
 build_package <- function(p, status) {
   status_p <- status_line(p)
   name <- status_p$package
 
-  ok <- (file.exists(file.path("src/contrib", package_zip(p))) &&
-         identical(status[[name]]$sha, status_p$sha))
-  if (!ok) {
+  build <- !(file.exists(file.path("src/contrib", package_zip(p))) &&
+             identical(status[[name]]$sha, status_p$sha))
+  if (build) {
     log("build", p[["str"]])
     do_build(p)
-    status[[name]] <- status_p
   }
-  status
+  build
 }
 
 clean_packages <- function(packages) {
@@ -221,6 +219,8 @@ update_drat <- function(packages, commit=TRUE) {
     repo <- git2r::repository(path)
   } else {
     ## NOTE: This duplicates some behaviour in drat::initRepo()
+    ## TODO: possibly make this optional?
+    ## TODO: can tweak this behaviour with commit argument?
     repo <- git2r::init(path)
     readme <- file.path(path, "README.md")
     writeLines("# `drat`", readme)
@@ -242,22 +242,29 @@ update_drat <- function(packages, commit=TRUE) {
 }
 
 update_drat1 <- function(p, commit) {
-  z <- package_zip(p)
-  zz <- file.path("packages", z)
-  if (!file.exists(zz)) {
-    ## No package was built, so we skip inserting.
+  status_p <- status_line(p)
+  name <- status_p$package
+  status <- status_load(".")
+  update <- !identical(status[[name]]$sha, status_p$sha)
+
+  if (!update) {
     return()
   }
+  status[[name]] <- status_p
+
+  z <- package_zip(p)
+  zz <- file.path("packages", z)
   log("drat", p[["str"]])
   drat::insertPackage(file.path("packages", z), ".")
-  repo <- git2r::repository(".")
-  git_add(repo, file.path("src/contrib", basename(z)), force=TRUE)
+  status_save(".", status)
+
   if (commit) {
+    repo <- git2r::repository(".")
+    git_add(repo, file.path("src/contrib", basename(z)), force=TRUE)
     if (git_nstaged(repo) > 0L) {
       log("commit", p[["str"]])
       git_add(repo, "src/contrib/PACKAGES", force=TRUE)
       git_add(repo, "src/contrib/PACKAGES.gz", force=TRUE)
-      ## git_add(repo, "src/.gitignore", force=TRUE)
       git_add(repo, status_filename("."), force=TRUE)
       msg <- paste(package_name(p),
                    package_version(p),
@@ -333,8 +340,21 @@ git_nstaged <- function(repo) {
   length(st$staged)
 }
 
+## Need to get git to fetch *all* references; that means updating
+## where we are up to exactly; this is not supported in git2r (the
+## other option I believe is to clone in mirror mode, but that is
+## going to require calling out to the system git too).  A further
+## option is to rewrite the config file, but *that* also requires
+## calling out to the system git.
+git_fetch_all <- function(path) {
+  run_system(Sys.which("git"),
+             c("-C", path, "fetch", "origin", "*:*"))
+}
+
 ## Workaround for git2r::add not having a force argument.
 ## Filed: https://github.com/ropensci/git2r/issues/148
+## Fixed since 7ccb202 but no bump to version number so can't depend
+## yet.
 git_add <- function(repo, path, force) {
   if (force) {
     git <- Sys.which("git")
@@ -401,13 +421,12 @@ do_build <- function(p, args=NULL) {
   if (is.null(args)) {
     args <- "--no-manual"
   }
-  R <- file.path(R.home("bin"), "R")
-  ok <- system2(R, c("--vanilla",
-                     "CMD", "build", package_dir(p),
-                     args))
-  if (!identical(as.character(ok), "0")) {
-    stop(sprintf("Command failed with code %s", ok), call.=FALSE)
-  }
+  path <- package_dir(p)
+  owd <- setwd(dirname(path))
+  on.exit(setwd(owd))
+  run_system(file.path(R.home("bin"), "R"),
+             c("--vanilla",
+               "CMD", "build", args, basename(path)))
 }
 
 ## Utilities:
