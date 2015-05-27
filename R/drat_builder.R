@@ -5,13 +5,14 @@ main <- function(args=commandArgs(TRUE)) {
   ## TODO: Support 'clean' as a command
   ## TODO: Support rebuilding (can just remove the status file)
   'Usage:
-  drat.builder [options]
+  drat.builder [options] [<package_list>]
   drat.builder -h | --help
 
   Options:
   --install        attempt to install packages before building
   --install-local  as --install, but install in a local library
-  --no-fetch       skip fetch' -> doc
+  --no-fetch       skip fetch
+  --no-commit      skip commit' -> doc
   oo <- options(warnPartialMatchArgs=FALSE)
   if (isTRUE(oo$warnPartialMatchArgs)) {
     on.exit(options(oo))
@@ -19,25 +20,32 @@ main <- function(args=commandArgs(TRUE)) {
   opts <- docopt::docopt(doc, args)
   names(opts) <- sub("-", "_", names(opts))
 
-  build("packages.txt",
+  if (is.null(opts$package_list)) {
+    opts$package_list <- "packages.txt"
+  }
+
+  build(opts$package_list,
         install       = opts$install,
         install_local = opts$install_local,
-        no_fetch      = opts$no_fetch)
+        no_fetch      = opts$no_fetch,
+        no_commit     = opts$no_commit)
 }
 
 ##' Build/Update a drat repo
 ##' @title Build/Update a drat repo
 ##' @param package_list Filename for the list of packages
 ##' @param install Install missing packages (may be required for
-## building vignettes)
+##' building vignettes)
 ##' @param install_local If installing, install into a temporary
 ##' library, rather than the main R libraries?
 ##' @param no_fetch Skip the fetch step
+##' @param no_commit Skip the commit when updating drat
 ##' @param forget Not yet used
 ##' @export
 build <- function(package_list="packages.txt",
                   install=FALSE, install_local=FALSE,
-                  no_fetch=FALSE, forget=FALSE) {
+                  no_fetch=FALSE, no_commit=FALSE,
+                  forget=FALSE) {
   if (!identical(forget, FALSE)) {
     stop("not yet implemented")
   }
@@ -51,7 +59,7 @@ build <- function(package_list="packages.txt",
     install_deps(pkgs, lib)
   }
   build_packages(pkgs)
-  update_drat(pkgs)
+  update_drat(pkgs, !no_commit)
 }
 
 read_packages <- function(package_list="packages.txt") {
@@ -222,25 +230,28 @@ update_drat <- function(packages, commit=TRUE) {
   path <- attr(packages, "path")
   if (file.exists(".git")) {
     repo <- git2r::repository(path)
-  } else {
+  } else if (commit) {
     ## NOTE: This duplicates some behaviour in drat::initRepo()
-    ## TODO: possibly make this optional?
-    ## TODO: can tweak this behaviour with commit argument?
     repo <- git2r::init(path)
-    readme <- file.path(path, "README.md")
-    writeLines("# `drat`", readme)
-    git2r::add(repo, "README.md") # TODO: not file.path
-    cmt <- git2r::commit(repo, "Initial Commit")
+
     ## NOTE: arguably a git2r bug where checkout does not work if
     ## there has not been a commit
+    readme <- if (path == ".") "README.md" else file.path(path, "README.md")
+    if (!file.exists(readme)) {
+      writeLines("# `drat`", readme)
+      git2r::add(repo, readme)
+    }
+    cmt <- git2r::commit(repo, "Initial commit")
+
     git2r::checkout(repo, "gh-pages", create = TRUE)
     git2r::branch_delete(git2r::branches(repo)[[2]])
   }
   init_drat(path)
 
-  if (git_nstaged(repo) > 0L) {
-    stop("Must have no staged files")
+  if (commit && git_nstaged(repo) > 0L) {
+    stop("Must have no staged files to commit")
   }
+
   for (p in rownames(packages)) {
     update_drat1(packages[p, ], commit, packages)
   }

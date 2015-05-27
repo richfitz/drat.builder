@@ -5,17 +5,21 @@
 \title{Build/Update a drat repo}
 \usage{
 build(package_list = "packages.txt", install = FALSE,
-  install_local = FALSE, no_fetch = FALSE, forget = FALSE)
+  install_local = FALSE, no_fetch = FALSE, no_commit = FALSE,
+  forget = FALSE)
 }
 \arguments{
 \item{package_list}{Filename for the list of packages}
 
-\item{install}{Install missing packages (may be required for}
+\item{install}{Install missing packages (may be required for
+building vignettes)}
 
 \item{install_local}{If installing, install into a temporary
 library, rather than the main R libraries?}
 
 \item{no_fetch}{Skip the fetch step}
+
+\item{no_commit}{Skip the commit when updating drat}
 
 \item{forget}{Not yet used}
 }
