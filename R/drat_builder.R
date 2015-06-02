@@ -12,7 +12,8 @@ main <- function(args=commandArgs(TRUE)) {
   --install        attempt to install packages before building
   --install-local  as --install, but install in a local library
   --no-fetch       skip fetch
-  --no-commit      skip commit' -> doc
+  --no-commit      skip commit
+  --drop-history   drop all git history' -> doc
   oo <- options(warnPartialMatchArgs=FALSE)
   if (isTRUE(oo$warnPartialMatchArgs)) {
     on.exit(options(oo))
@@ -28,7 +29,8 @@ main <- function(args=commandArgs(TRUE)) {
         install       = opts$install,
         install_local = opts$install_local,
         no_fetch      = opts$no_fetch,
-        no_commit     = opts$no_commit)
+        no_commit     = opts$no_commit,
+        drop_history  = opts$drop_history)
 }
 
 ##' Build/Update a drat repo
@@ -40,15 +42,14 @@ main <- function(args=commandArgs(TRUE)) {
 ##' library, rather than the main R libraries?
 ##' @param no_fetch Skip the fetch step
 ##' @param no_commit Skip the commit when updating drat
-##' @param forget Not yet used
+##' @param drop_history Drop all git history (note that this is a
+##' destructive operation, though drat.builder will attempt to leave
+##' things somewhat recoverable).
 ##' @export
 build <- function(package_list="packages.txt",
                   install=FALSE, install_local=FALSE,
                   no_fetch=FALSE, no_commit=FALSE,
-                  forget=FALSE) {
-  if (!identical(forget, FALSE)) {
-    stop("not yet implemented")
-  }
+                  drop_history=FALSE) {
   pkgs <- read_packages(package_list)
   if (!no_fetch) {
     fetch_package_sources(pkgs)
@@ -59,7 +60,7 @@ build <- function(package_list="packages.txt",
     install_deps(pkgs, lib)
   }
   build_packages(pkgs)
-  update_drat(pkgs, !no_commit)
+  update_drat(pkgs, !no_commit, drop_history)
 }
 
 read_packages <- function(package_list="packages.txt") {
@@ -225,8 +226,9 @@ clean_packages <- function(packages) {
 ## back?
 ##
 ## TODO: Version of this for starting from a fresh commit
+##   -- http://stackoverflow.com/a/15572071/1798863
 ##' @importFrom drat insertPackage
-update_drat <- function(packages, commit=TRUE) {
+update_drat <- function(packages, commit, drop_history) {
   path <- attr(packages, "path")
   if (file.exists(".git")) {
     repo <- git2r::repository(path)
@@ -239,8 +241,8 @@ update_drat <- function(packages, commit=TRUE) {
     readme <- if (path == ".") "README.md" else file.path(path, "README.md")
     if (!file.exists(readme)) {
       writeLines("# `drat`", readme)
-      git2r::add(repo, readme)
     }
+    git2r::add(repo, readme)
     cmt <- git2r::commit(repo, "Initial commit")
 
     git2r::checkout(repo, "gh-pages", create = TRUE)
@@ -254,6 +256,33 @@ update_drat <- function(packages, commit=TRUE) {
 
   for (p in rownames(packages)) {
     update_drat1(packages[p, ], commit, packages)
+  }
+
+  ## Now that we have everything, we might drop the history.  This is
+  ## a highly destructive move and only going to be appropriate for
+  ## keeping histories under control when they are created often.  It
+  ## will require a force push to deploy.
+  ##
+  ## There are couple of options:
+  ## - create a new orphan branch and move everything there.
+  ## - interactively squash everything together
+  ## - the approach below which is extremely quick
+  ##   via http://stackoverflow.com/a/23486788/1798863
+  if (commit && drop_history) {
+    ## Keep an old copy of the history around, just in case:
+    git <- Sys_which("git")
+    br <- call_system(git, c("rev-parse", "--abbrev-ref", "HEAD"))
+    br_old <- paste0(br, "_old")
+    call_system(git, c("branch", "-f", br_old))
+    sha <-
+      call_system(git, c("commit-tree", "HEAD^{tree}",
+                         "-m", '"destructive update by drat.builder"'))
+    call_system(git, c("reset", sha))
+    msg <- c(
+      paste("Destructively squashed all history into commit:", sha),
+      paste("Original history preserved in branch:", br_old),
+      paste("Push will require force (git push -f)"))
+    message(paste(msg, collapse="\n"))
   }
 }
 
@@ -352,8 +381,8 @@ git_nstaged <- function(repo) {
 ## option is to rewrite the config file, but *that* also requires
 ## calling out to the system git.
 git_fetch_all <- function(path) {
-  run_system(Sys.which("git"),
-             c("-C", path, "fetch", "origin", "*:*"))
+  call_system(Sys_which("git"),
+              c("-C", path, "fetch", "origin", "*:*"))
 }
 
 ## Workaround for git2r::add not having a force argument.
@@ -362,7 +391,7 @@ git_fetch_all <- function(path) {
 ## yet.
 git_add <- function(repo, path, force) {
   if (force) {
-    git <- Sys.which("git")
+    git <- Sys_which("git")
     args <- c("-C", repo@path, "add", "--force", path)
     ok <- system2(git, args)
     if (ok != 0L) {
@@ -429,9 +458,9 @@ do_build <- function(p, args=NULL) {
   path <- p[["path"]]
   owd <- setwd(dirname(path))
   on.exit(setwd(owd))
-  run_system(file.path(R.home("bin"), "R"),
-             c("--vanilla",
-               "CMD", "build", args, basename(path)))
+  call_system(file.path(R.home("bin"), "R"),
+              c("--vanilla",
+                "CMD", "build", args, basename(path)))
 }
 
 ## Utilities:
