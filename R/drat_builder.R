@@ -79,11 +79,16 @@ read_packages <- function(package_list="packages.txt") {
                  collapse="\n")
     stop(err)
   }
+
   path <- dirname(package_list)
   packages_path <- file.path(path, "packages", packages[, "repo"])
+  packages_path_pkg <- packages_path
   i <- !is.na(packages[, "subdir"])
-  packages_path[i] <- file.path(packages_path[i], packages[i, "subdir"])
-  packages <- cbind(packages, path=unname(packages_path))
+  packages_path_pkg[i] <- file.path(packages_path_pkg[i], packages[i, "subdir"])
+  packages <- cbind(packages,
+                    path=unname(packages_path),
+                    path_pkg=unname(packages_path_pkg),
+                    path_repo=file.path("packages_src", packages[, "repo"]))
 
   attr(packages, "path") <- path
   attr(packages, "name") <- package_list
@@ -120,10 +125,9 @@ update_package_sources <- function(packages) {
 update_package <- function(p) {
   src  <- package_repo_dir(p)
   dest <- p[["path"]]
-
-  git2r::clone(src, dest, progress=FALSE)
+  call_git("clone", src, dest)
   if (!is.na(p[["ref"]])) {
-    git2r::checkout(git2r::repository(dest), p[["ref"]])
+    call_git("-C", dest, "checkout", p[["ref"]])
   }
 }
 
@@ -134,7 +138,7 @@ install_deps <- function(packages, lib=NULL) {
   ## hard to test.
 
   ## Get all deps:
-  deps <- unique(unlist(lapply(packages[, "path"], get_deps)))
+  deps <- unique(unlist(lapply(packages[, "path_pkg"], get_deps)))
   new_packages <- setdiff(deps, .packages(TRUE))
   if (length(new_packages) == 0L) {
     return()
@@ -174,7 +178,7 @@ install_deps <- function(packages, lib=NULL) {
   if (length(new_packages_drat) > 0L) {
     log("install", paste(new_packages_drat, collapse=" "))
     pkgs <- names(packages_drat)[match(new_packages_drat, packages_drat)]
-    pkgs_dirs <- packages[pkgs, "path"]
+    pkgs_dirs <- packages[pkgs, "path_pkg"]
     install.packages(pkgs_dirs, lib=lib, repos=NULL, type="source")
   }
 
@@ -204,6 +208,10 @@ build_package <- function(p, status) {
   if (build) {
     log("build", p[["str"]])
     do_build(p)
+    if (!is.na(p[["subdir"]])) {
+      file.rename(file.path(dirname(p[["path_pkg"]]), package_zip(p)),
+                  file.path(dirname(p[["path"]]), package_zip(p)))
+    }
   }
   build
 }
@@ -338,11 +346,11 @@ package_zip <- function(p) {
 }
 
 package_version <- function(p) {
-  get_package_version(p[["path"]])
+  get_package_version(p[["path_pkg"]])
 }
 
 package_name <- function(p) {
-  get_package_name(p[["path"]])
+  get_package_name(p[["path_pkg"]])
 }
 
 package_sha <- function(p) {
@@ -359,14 +367,14 @@ package_github_url <- function(p) {
   paste0(prefix, paste(p[["user"]], p[["repo"]], sep="/"), ".git")
 }
 
-## This is the true remote, but using the above migh be better?
+## This is the true remote, but using the above might be better?
 package_url <- function(p) {
   git2r::remote_url(git2r::repository(package_repo_dir(p)), "origin")
 }
 
 ## Couple of useful git commands
 git_sha <- function(path) {
-  git2r::branch_target(git2r::head(git2r::repository(path)))
+  call_git("-C", path, "rev-parse", "HEAD")
 }
 
 git_nstaged <- function(repo) {
@@ -451,11 +459,15 @@ status_line <- function(p) {
        str=p[["str"]])
 }
 
-do_build <- function(p, args=NULL) {
-  if (is.null(args)) {
-    args <- "--no-manual"
+do_build <- function(p) {
+  defaults <- list(manual=FALSE, vignettes=TRUE)
+  if (!is.na(p[["opts"]])) {
+    defaults <- modifyList(defaults, jsonlite::fromJSON(p[["opts"]]))
   }
-  path <- p[["path"]]
+  args <- c(if (defaults$manual) character(0) else "--no-manual",
+            if (defaults$vignettes) character(0) else "--no-build-vignettes")
+
+  path <- p[["path_pkg"]]
   owd <- setwd(dirname(path))
   on.exit(setwd(owd))
   call_system(file.path(R.home("bin"), "R"),
@@ -494,7 +506,7 @@ parse_packages <- function(x) {
   ##   <username>/<repo>[/subdir][@ref]
   ## I think we're going to support additional things, including
   ## recursive, alt hosters, etc.
-  re <- "^([^/]+)/([^/@#]+)(.*)$"
+  re <- "^([^/]+)/([^/@#[:space:]]+)(.*)$"
   if (!all(grepl(re, x))) {
     stop("Invalid package line")
   }
@@ -503,7 +515,7 @@ parse_packages <- function(x) {
   repo <- sub(re, "\\2", x)
   rest <- sub(re, "\\3", x)
 
-  re_subdir <- "^(/[^@#]*)(.*)"
+  re_subdir <- "^(/[^@#[:space:]]*)(.*)"
   i <- grepl(re_subdir, rest)
   subdir <- rep(NA_character_, length(x))
   subdir[i] <- sub("^/", "", sub(re_subdir, "\\1", rest[i]))
@@ -511,7 +523,7 @@ parse_packages <- function(x) {
 
   ## Either pull request or reference allowed, but let's just not
   ## support PRs yet.
-  re_ref <- "^(@[^#]*)(.*)"
+  re_ref <- "^(@[^#[:space:]]*)(.*)"
   i <- grepl(re_ref, rest)
   ref <- rep(NA_character_, length(x))
   ref[i]  <- sub("^@", "", sub(re_ref, "\\1", rest[i]))
@@ -523,12 +535,39 @@ parse_packages <- function(x) {
          paste(x[nchar(ref) == 0L], collapse=", "))
   }
 
-  if (any(nchar(rest) > 0L)) {
-    stop("Malformed git repo: ",
-         paste(x[nchar(rest) > 0L], collapse=", "))
-  }
+  rest <- trimws(rest)
+  rest[nchar(rest) == 0L] <- NA_character_
 
-  ret <- cbind(user=user, repo=repo, subdir=subdir, ref=ref, str=x)
+  ## Check that everything left over is valid JSON:
+  i <- !is.na(rest)
+  check_parse <- function(x) {
+    res <- tryCatch(jsonlite::fromJSON(x),
+                    error=function(e) {
+                      e$message <- sprintf("Error processing json '%s'\n%s",
+                                           x, e$message)
+                      stop(e)
+                    })
+    valid <- c(manual=logical(1), vignettes=logical(1))
+    extra <- setdiff(names(res), names(valid))
+    if (length(extra) > 0L) {
+      warning("Extra options ignored: ", paste(extra, collapse=", "),
+              immediate.=TRUE)
+    }
+    ok <- vapply(res, function(x) is.logical(x) && length(x) == 1,
+                 logical(1))
+    if (!all(ok)) {
+      stop(sprintf("All options must be logical scalars (error on %s)",
+                   paste(names(ok[!ok]), collapse=", ")))
+    }
+  }
+  lapply(rest[i], check_parse)
+
+  ret <- cbind(user=user, repo=repo, subdir=subdir, ref=ref,
+               opts=rest, str=x)
   rownames(ret) <- x
   ret
+}
+
+call_git <- function(...) {
+  call_system(Sys_which("git"), c(...))
 }

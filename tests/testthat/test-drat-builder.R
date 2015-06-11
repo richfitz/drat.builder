@@ -20,4 +20,31 @@ test_that("parse package line", {
               equals(c(NA, "subdir", NA, "subdir")))
   expect_that(unname(res[, "ref"]),
               equals(c(NA, NA, "ref", "ref")))
+
+  ## trailing yaml:
+
+  txt <- c("foo/bar",
+           'foo/bar {"vignettes": true}',
+           'foo/bar      {"vignettes": false}   ')
+  res <- parse_packages(txt)
+  expect_that(unname(res[, "opts"]),
+              equals(c(NA, '{"vignettes": true}', '{"vignettes": false}')))
+
+  ## Invalid yaml:
+  expect_that(parse_packages(c("foo/bar {baz")),
+              throws_error("Error processing json '{baz'", fixed=TRUE))
+  expect_that(parse_packages(c("foo/bar/subdir {baz")),
+              throws_error("Error processing json '{baz'", fixed=TRUE))
+  expect_that(parse_packages(c("foo/bar@ref {baz")),
+              throws_error("Error processing json '{baz'", fixed=TRUE))
+  expect_that(parse_packages(c("foo/bar/subdir@ref {baz")),
+              throws_error("Error processing json '{baz'", fixed=TRUE))
+
+  ## Unknown options:
+  expect_that(parse_packages('foo/bar {"opt": false}'),
+              gives_warning("Extra options ignored: opt"))
+
+  ## Non-scalar arguments:
+  expect_that(parse_packages('foo/bar {"vignettes": "sounds great!"}'),
+              gives_warning("All options must be logical scalars"))
 })

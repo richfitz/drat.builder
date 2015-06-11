@@ -1,0 +1,11 @@
+# basic:
+richfitz/remoji
+
+# with vignettes
+richfitz/storr
+
+# in subdirectory, with option
+cboettig/rrdf/rrdf    {"vignettes": false}
+
+# specific version:
+hadley/testthat@v0.9.1
