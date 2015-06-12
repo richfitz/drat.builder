@@ -46,5 +46,5 @@ test_that("parse package line", {
 
   ## Non-scalar arguments:
   expect_that(parse_packages('foo/bar {"vignettes": "sounds great!"}'),
-              gives_warning("All options must be logical scalars"))
+              throws_error("All options must be logical scalars"))
 })

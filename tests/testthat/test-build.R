@@ -8,16 +8,22 @@ context("build (slow)")
 ## The biggest missing thing is mocking up re-fetching a repo that has
 ## moved on, upstream.
 test_that("build (slow)", {
-  # skip_if_cran()
+  skip_on_cran()
+  Sys.setenv("R_TESTS" = "")
+
+  r <- getOption("repos")
+  r["CRAN"] <- "http://cran.rstudio.org"
+  oo <- options(repos=r)
+  on.exit(options(oo), add=TRUE)
 
   path <- tempfile()
   dir.create(path)
   file.copy("packages.txt", path)
 
   owd <- setwd(path)
-  on.exit(setwd(owd))
+  on.exit(setwd(owd), add=TRUE)
 
-  drat.builder::build()
+  drat.builder::build(install_local=TRUE)
 
   br <- call_git("branch", "--list")
   expect_that(br, equals("* gh-pages"))
