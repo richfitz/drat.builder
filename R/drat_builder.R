@@ -9,11 +9,13 @@ main <- function(args=commandArgs(TRUE)) {
   drat.builder -h | --help
 
   Options:
-  --install        attempt to install packages before building
-  --install-local  as --install, but install in a local library
-  --no-fetch       skip fetch
-  --no-commit      skip commit
-  --drop-history   drop all git history' -> doc
+  --install              attempt to install packages before building
+  --install-local        as --install, but install in a local library
+  --no-fetch             skip fetch
+  --no-commit            skip commit
+  --no-build-vignettes   skip vignettes (default behavior, can override per package)
+  --no-manual            skip manual (default behavior, can override per package)
+  --drop-history         drop all git history' -> doc
   oo <- options(warnPartialMatchArgs=FALSE)
   if (isTRUE(oo$warnPartialMatchArgs)) {
     on.exit(options(oo))
@@ -26,11 +28,13 @@ main <- function(args=commandArgs(TRUE)) {
   }
 
   build(opts$package_list,
-        install       = opts$install,
-        install_local = opts$install_local,
-        no_fetch      = opts$no_fetch,
-        no_commit     = opts$no_commit,
-        drop_history  = opts$drop_history)
+        install            = opts$install,
+        install_local      = opts$install_local,
+        no_fetch           = opts$no_fetch,
+        no_commit          = opts$no_commit,
+        no_build_vignettes = opts$no_build_vignettes,
+        no_manual          = opts$no_manual,
+        drop_history       = opts$drop_history)
 }
 
 ##' Build/Update a drat repo
@@ -49,7 +53,9 @@ main <- function(args=commandArgs(TRUE)) {
 build <- function(package_list="packages.txt",
                   install=FALSE, install_local=FALSE,
                   no_fetch=FALSE, no_commit=FALSE,
+                  no_build_vignettes=FALSE, no_manual=TRUE,
                   drop_history=FALSE) {
+  defaults <- list(vignettes = !(no_build_vignettes), manual = !(no_manual))
   pkgs <- read_packages(package_list)
   if (!no_fetch) {
     fetch_package_sources(pkgs)
@@ -59,7 +65,7 @@ build <- function(package_list="packages.txt",
     lib <- if (install_local) tempfile("library") else NULL
     install_deps(pkgs, lib)
   }
-  build_packages(pkgs)
+  build_packages(pkgs, defaults)
   update_drat(pkgs, !no_commit, drop_history)
 }
 
@@ -192,14 +198,14 @@ install_deps <- function(packages, lib=NULL) {
 }
 
 ## should only build if we have a different version to last time.
-build_packages <- function(packages) {
+build_packages <- function(packages, defaults) {
   status <- status_load(packages)
   for (p in rownames(packages)) {
-    build_package(packages[p, ], status)
+    build_package(packages[p, ], status, defaults)
   }
 }
 
-build_package <- function(p, status) {
+build_package <- function(p, status, defaults) {
   status_p <- status_line(p)
   name <- status_p$package
 
@@ -207,7 +213,7 @@ build_package <- function(p, status) {
              identical(status[[name]]$sha, status_p$sha))
   if (build) {
     log("build", p[["str"]])
-    do_build(p)
+    do_build(p, defaults)
     if (!is.na(p[["subdir"]])) {
       file.rename(file.path(dirname(p[["path_pkg"]]), package_zip(p)),
                   file.path(dirname(p[["path"]]), package_zip(p)))
@@ -459,8 +465,7 @@ status_line <- function(p) {
        str=p[["str"]])
 }
 
-do_build <- function(p) {
-  defaults <- list(manual=FALSE, vignettes=TRUE)
+do_build <- function(p, defaults) {
   if (!is.na(p[["opts"]])) {
     defaults <- modifyList(defaults, jsonlite::fromJSON(p[["opts"]]))
   }
