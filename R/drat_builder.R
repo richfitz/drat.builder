@@ -13,8 +13,8 @@ main <- function(args=commandArgs(TRUE)) {
   --install-local        as --install, but install in a local library
   --no-fetch             skip fetch
   --no-commit            skip commit
-  --no-build-vignettes   skip vignettes (default behavior, can override per package)
-  --no-manual            skip manual (default behavior, can override per package)
+  --no-build-vignettes   skip vignettes (default behaviour, can override per package)
+  --no-manual            skip manual (default behaviour, can override per package)
   --drop-history         drop all git history' -> doc
   oo <- options(warnPartialMatchArgs=FALSE)
   if (isTRUE(oo$warnPartialMatchArgs)) {
@@ -53,7 +53,7 @@ main <- function(args=commandArgs(TRUE)) {
 build <- function(package_list="packages.txt",
                   install=FALSE, install_local=FALSE,
                   no_fetch=FALSE, no_commit=FALSE,
-                  no_build_vignettes=FALSE, no_manual=TRUE,
+                  no_build_vignettes=TRUE, no_manual=TRUE,
                   drop_history=FALSE) {
   defaults <- list(vignettes = !(no_build_vignettes), manual = !(no_manual))
   pkgs <- read_packages(package_list)
