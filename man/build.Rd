@@ -6,7 +6,7 @@
 \usage{
 build(package_list = "packages.txt", install = FALSE,
   install_local = FALSE, no_fetch = FALSE, no_commit = FALSE,
-  drop_history = FALSE)
+  no_build_vignettes = TRUE, no_manual = TRUE, drop_history = FALSE)
 }
 \arguments{
 \item{package_list}{Filename for the list of packages}
@@ -20,6 +20,12 @@ library, rather than the main R libraries?}
 \item{no_fetch}{Skip the fetch step}
 
 \item{no_commit}{Skip the commit when updating drat}
+
+\item{no_build_vignettes}{Skip building vignettes (which skips
+installation which is a potential headache)}
+
+\item{no_manual}{Skip building PDF versions of the manual (which
+requires a fullish LaTeX installation)}
 
 \item{drop_history}{Drop all git history (note that this is a
 destructive operation, though drat.builder will attempt to leave

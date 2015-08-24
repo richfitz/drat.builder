@@ -41,14 +41,18 @@ main <- function(args=commandArgs(TRUE)) {
 ##' @title Build/Update a drat repo
 ##' @param package_list Filename for the list of packages
 ##' @param install Install missing packages (may be required for
-##' building vignettes)
+##'   building vignettes)
 ##' @param install_local If installing, install into a temporary
-##' library, rather than the main R libraries?
+##'   library, rather than the main R libraries?
 ##' @param no_fetch Skip the fetch step
 ##' @param no_commit Skip the commit when updating drat
+##' @param no_build_vignettes Skip building vignettes (which skips
+##'   installation which is a potential headache)
+##' @param no_manual Skip building PDF versions of the manual (which
+##'   requires a fullish LaTeX installation)
 ##' @param drop_history Drop all git history (note that this is a
-##' destructive operation, though drat.builder will attempt to leave
-##' things somewhat recoverable).
+##'   destructive operation, though drat.builder will attempt to leave
+##'   things somewhat recoverable).
 ##' @export
 build <- function(package_list="packages.txt",
                   install=FALSE, install_local=FALSE,
