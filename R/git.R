@@ -24,8 +24,7 @@ git_nstaged <- function(path) {
 ## option is to rewrite the config file, but *that* also requires
 ## calling out to the system git.
 git_fetch_all <- function(path) {
-  call_system(Sys_which("git"),
-              c("-C", path, "fetch", "origin", "*:*"))
+  call_git(c("remote", "update"), workdir=path)
 }
 
 ## None of this is that bad to get rid of, especially if we do a
