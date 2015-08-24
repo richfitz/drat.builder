@@ -6,6 +6,7 @@ richfitz/storr
 
 # in subdirectory, with option
 egonw/rrdf/rrdf    {"vignettes": false}
+egonw/rrdf/rrdflibs    {"vignettes": false}
 
 # specific version:
 hadley/testthat@v0.9.1

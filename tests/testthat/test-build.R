@@ -25,14 +25,15 @@ test_that("build (slow)", {
 
   drat.builder::build(install_local=TRUE)
 
-  br <- call_git("branch", "--list")
+  br <- call_git(c("branch", "--list"))
   expect_that(br, equals("* gh-pages"))
 
   pkgs <- read.dcf("src/contrib/PACKAGES")
 
   cmp <- read_packages()
-  expect_that(sort(pkgs[, "Package"]),
-              equals(sort(unname(cmp[, "repo"]))))
+
+  nm <- ifelse(is.na(cmp[, "subdir"]), cmp[, "repo"], cmp[, "subdir"])
+  expect_that(sort(pkgs[, "Package"]), equals(sort(unname(nm))))
 
   i <- match("testthat", pkgs[, "Package"])
   expect_that(unname(pkgs[i, "Version"]), equals("0.9.1"))

@@ -78,27 +78,31 @@ read_packages <- function(package_list="packages.txt") {
   ## This trims blank lines and "comments"
   packages <- sub("\\s*#.*$", "", packages)
   packages <- parse_packages(packages[!grepl("^\\s*$", packages)])
-  ## TODO: this is harsh for the rare cases where identically named
-  ## repositories have different packages, or where one repository has
-  ## multiple packages in different subdirectories.
-  if (any(duplicated(packages[, "repo"]))) {
-    dups <- packages[duplicated(packages[, "repo"]), "repo"]
-    dups <- packages[packages[, "repo"] %in% dups, ]
-    err <- paste(c("Duplicate repository names:",
-                   paste0(" - ", dups[order(dups[, "repo"]), "str"])),
-                 collapse="\n")
-    stop(err)
-  }
 
+  packages <- cbind(packages, repo_dir=sprintf("%s/%s",
+                                               packages[, "user"],
+                                               packages[, "repo"]))
+
+  ## TODO: Would be nice to check that there were no duplicate package
+  ## names, bit not done for now.
   path <- dirname(package_list)
   packages_path <- file.path(path, "packages", packages[, "repo"])
-  packages_path_pkg <- packages_path
+
+  ## This bit of horribleness allows multiple packages within one
+  ## repository that will be cloned independently (e.g., if requiring
+  ## different refrences).
   i <- !is.na(packages[, "subdir"])
+  if (any(i)) {
+    packages_path[i] <- paste(packages_path[i],
+                              packages[i, "subdir"], sep="__")
+  }
+  packages_path_pkg <- packages_path
   packages_path_pkg[i] <- file.path(packages_path_pkg[i], packages[i, "subdir"])
+
   packages <- cbind(packages,
                     path=unname(packages_path),
                     path_pkg=unname(packages_path_pkg),
-                    path_repo=file.path("packages_src", packages[, "repo"]))
+                    path_repo=file.path("packages_src", packages[, "repo_dir"]))
 
   attr(packages, "path") <- path
   attr(packages, "name") <- package_list
@@ -333,7 +337,7 @@ log <- function(action, package) {
 ## All the package_ functions take a string from the packages.txt file
 ## and do something useful with them.
 package_repo_dir <- function(p) {
-  file.path("packages_src", p[["repo"]])
+  p[["path_repo"]]
 }
 
 package_zip <- function(p) {
