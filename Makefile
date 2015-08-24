@@ -5,7 +5,7 @@ all:
 	${RSCRIPT} -e 'library(methods); devtools::compile_dll()'
 
 test:
-	${RSCRIPT} -e 'library(methods); devtools::test(); stopifnot(sum(as.data.frame(.Last.value)[["failed"]]) == 0)'
+	${RSCRIPT} -e 'library(methods); devtools::test(); assert_tests_passed()'
 
 test_all:
 	REMAKE_TEST_INSTALL_PACKAGES=true make test

@@ -41,3 +41,11 @@ Sys_which <- function(x) {
   }
   ret
 }
+
+## For working around testthat
+assert_tests_passed <- function(obj=.Last.value) {
+  obj <- as.data.frame(obj)
+  if (any(obj$failed > 0) || any(obj$error)) {
+    stop("Tests were not successful")
+  }
+}
