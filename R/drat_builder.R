@@ -112,7 +112,6 @@ fetch_package_sources <- function(packages) {
   }
 }
 
-##' @importFrom git2r fetch
 fetch_package <- function(p) {
   log("fetch", p[["str"]])
   ## TODO: This is possibly something better done with file storr,
@@ -121,7 +120,7 @@ fetch_package <- function(p) {
   if (file.exists(dp)) {
     git_fetch_all(package_repo_dir(p))
   } else {
-    git2r::clone(package_github_url(p), dp, TRUE)
+    git_clone(package_github_url(p), dp, "--mirror")
   }
 }
 
@@ -135,9 +134,9 @@ update_package_sources <- function(packages) {
 update_package <- function(p) {
   src  <- package_repo_dir(p)
   dest <- p[["path"]]
-  call_git("clone", src, dest)
+  git_clone(src, dest)
   if (!is.na(p[["ref"]])) {
-    call_git("-C", dest, "checkout", p[["ref"]])
+    call_git(c("checkout", p[["ref"]]), workdir=dest)
   }
 }
 
@@ -248,27 +247,14 @@ clean_packages <- function(packages) {
 ##' @importFrom drat insertPackage
 update_drat <- function(packages, commit, drop_history) {
   path <- attr(packages, "path")
-  if (file.exists(".git")) {
-    repo <- git2r::repository(path)
-  } else if (commit) {
+  if (!file.exists(".git")) {
     ## NOTE: This duplicates some behaviour in drat::initRepo()
-    repo <- git2r::init(path)
-
-    ## NOTE: arguably a git2r bug where checkout does not work if
-    ## there has not been a commit
-    readme <- if (path == ".") "README.md" else file.path(path, "README.md")
-    if (!file.exists(readme)) {
-      writeLines("# `drat`", readme)
-    }
-    git2r::add(repo, readme)
-    cmt <- git2r::commit(repo, "Initial commit")
-
-    git2r::checkout(repo, "gh-pages", create = TRUE)
-    git2r::branch_delete(git2r::branches(repo)[[2]])
+    git_init(path)
+    call_git(c("checkout", "-b", "gh-pages"), workdir=path)
   }
   init_drat(path)
 
-  if (commit && git_nstaged(repo) > 0L) {
+  if (commit && git_nstaged(path) > 0L) {
     stop("Must have no staged files to commit")
   }
 
@@ -323,18 +309,17 @@ update_drat1 <- function(p, commit, packages) {
   status_save(packages, status)
 
   if (commit) {
-    repo <- git2r::repository(path)
-    git_add(repo, file.path("src/contrib", basename(z)), force=TRUE)
-    if (git_nstaged(repo) > 0L) {
+    git_add(file.path("src/contrib", basename(z)), force=TRUE, repo=path)
+    if (git_nstaged(path) > 0L) {
       log("commit", p[["str"]])
-      git_add(repo, "src/contrib/PACKAGES", force=TRUE)
-      git_add(repo, "src/contrib/PACKAGES.gz", force=TRUE)
-      git_add(repo, status_filename(packages), force=TRUE)
+      git_add("src/contrib/PACKAGES", force=TRUE, repo=path)
+      git_add("src/contrib/PACKAGES.gz", force=TRUE, repo=path)
+      git_add(status_filename(packages), force=TRUE, repo=path)
       msg <- paste(package_name(p),
                    package_version(p),
                    substr(package_sha(p), 1, 7),
                    package_url(p))
-      git2r::commit(repo, msg)
+      call_git(c("commit", "--no-verify", "-m", shQuote(msg)), workdir=path)
     }
   }
 }
@@ -367,10 +352,6 @@ package_sha <- function(p) {
   git_sha(p[["path"]])
 }
 
-package_repo <- function(p) {
-  git2r::repository(p[["path"]])
-}
-
 package_github_url <- function(p) {
   prefix <- "git@github.com:"
   prefix <- "https://github.com/"
@@ -379,45 +360,8 @@ package_github_url <- function(p) {
 
 ## This is the true remote, but using the above might be better?
 package_url <- function(p) {
-  git2r::remote_url(git2r::repository(package_repo_dir(p)), "origin")
-}
-
-## Couple of useful git commands
-git_sha <- function(path) {
-  call_git("-C", path, "rev-parse", "HEAD")
-}
-
-git_nstaged <- function(repo) {
-  st <- git2r::status(repo, unstaged=FALSE, untracked=FALSE)
-  length(st$staged)
-}
-
-## Need to get git to fetch *all* references; that means updating
-## where we are up to exactly; this is not supported in git2r (the
-## other option I believe is to clone in mirror mode, but that is
-## going to require calling out to the system git too).  A further
-## option is to rewrite the config file, but *that* also requires
-## calling out to the system git.
-git_fetch_all <- function(path) {
-  call_system(Sys_which("git"),
-              c("-C", path, "fetch", "origin", "*:*"))
-}
-
-## Workaround for git2r::add not having a force argument.
-## Filed: https://github.com/ropensci/git2r/issues/148
-## Fixed since 7ccb202 but no bump to version number so can't depend
-## yet.
-git_add <- function(repo, path, force) {
-  if (force) {
-    git <- Sys_which("git")
-    args <- c("-C", repo@path, "add", "--force", path)
-    ok <- system2(git, args)
-    if (ok != 0L) {
-      stop("Error adding file")
-    }
-  } else {
-    git2r::add(repo, path)
-  }
+  workdir <- package_repo_dir(p)
+  call_git(c("config", "--get", "remote.origin.url"), workdir=workdir)
 }
 
 init_library <- function(path) {
@@ -575,8 +519,4 @@ parse_packages <- function(x) {
                opts=rest, str=x)
   rownames(ret) <- x
   ret
-}
-
-call_git <- function(...) {
-  call_system(Sys_which("git"), c(...))
 }

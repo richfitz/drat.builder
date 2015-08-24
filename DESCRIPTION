@@ -8,6 +8,6 @@ License: BSD_2_clause + file LICENSE
 LazyData: true
 Author: Rich FitzJohn
 Maintainer: Rich FitzJohn <rich.fitzjohn@gmail.com>
-Imports: crayon, docopt, drat, git2r, jsonlite
+Imports: crayon, docopt, drat, jsonlite
 Suggests: testthat
 SystemDependencies: git

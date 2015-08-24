@@ -5,7 +5,7 @@ richfitz/remoji
 richfitz/storr
 
 # in subdirectory, with option
-cboettig/rrdf/rrdf    {"vignettes": false}
+egonw/rrdf/rrdf    {"vignettes": false}
 
 # specific version:
 hadley/testthat@v0.9.1
