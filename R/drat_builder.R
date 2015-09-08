@@ -21,11 +21,13 @@ main <- function(args=commandArgs(TRUE)) {
     on.exit(options(oo))
   }
   opts <- docopt::docopt(doc, args)
-  names(opts) <- sub("-", "_", names(opts))
+  names(opts) <- gsub("-", "_", names(opts))
 
   if (is.null(opts$package_list)) {
     opts$package_list <- "packages.txt"
   }
+
+  browser()
 
   build(opts$package_list,
         install            = opts$install,
