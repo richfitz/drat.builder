@@ -30,7 +30,7 @@ update_landing_page <- function(packages, commit) {
     pkgs_version <- vcapply(pkgs, "[[", "version")
     pkgs_gh <- file.path("https://github.com",
                          packages[, "user"], packages[, "repo"])
-    fmt <- '<li><code>%s</code> (v %s, <a href="%s" class="text-info"><i class="fa fa-github"></i></a></li>): %s'
+    fmt <- '<li><code>%s</code> (v %s, <a href="%s" class="text-info"><i class="fa fa-github"></i></a>): %s</li>'
     pkgs_li <- sprintf(fmt, pkgs_name, pkgs_version, pkgs_gh, pkgs_title)
     dat$package_list <-
       paste(c("<ul>", pkgs_li[order(pkgs_name)], "</ul>"),
