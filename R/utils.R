@@ -49,3 +49,8 @@ assert_tests_passed <- function(obj=.Last.value) {
     stop("Tests were not successful")
   }
 }
+
+read_dcf <- function(x) {
+  dat <- read.dcf(x)
+  setNames(as.list(dat), tolower(colnames(dat)))
+}

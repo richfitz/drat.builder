@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>{{{title}}}</title>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
+    <link href="http://netdna.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet"/>
+
+  </head>
+  <body>
+    <div class="jumbotron">
+      <div class="container">
+        <h1>{{{title}}}</h1>
+        <p>{{{description}}}</p>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="row">
+        <div class="col-md-8">
+          <h2>Packages</h2>
+          {{{package_list}}}
+        </div>
+        <div class="col-md-4">
+          <p>If <code>drat</code> is not installed, first install from
+            CRAN with</p>
+          <pre>install.packages("drat")</pre>
+          <p>To install packages, run</p>
+          <pre>drat::add("{{{username}}}")</pre>
+          <p>after which packages can be installed as usual, for example:</p>
+          <pre>install.packages("{{{package_name}}}")</pre>
+        </div>
+      </div>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  </body>
+</html>

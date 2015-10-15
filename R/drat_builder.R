@@ -27,8 +27,6 @@ main <- function(args=commandArgs(TRUE)) {
     opts$package_list <- "packages.txt"
   }
 
-  browser()
-
   build(opts$package_list,
         install            = opts$install,
         install_local      = opts$install_local,
@@ -267,6 +265,7 @@ update_drat <- function(packages, commit, drop_history) {
   for (p in rownames(packages)) {
     update_drat1(packages[p, ], commit, packages)
   }
+  update_landing_page(packages, commit)
 
   ## Now that we have everything, we might drop the history.  This is
   ## a highly destructive move and only going to be appropriate for
