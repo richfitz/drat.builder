@@ -488,9 +488,9 @@ parse_packages <- function(x) {
   rest[i] <- sub(re_ref, "\\2", rest[i])
 
   subdir[nchar(subdir) == 0L] <- NA_character_
-  if (any(nchar(ref) == 0L)) {
-    stop("Invalid reference: ",
-         paste(x[nchar(ref) == 0L], collapse=", "))
+  ref0 <- !nzchar(ref, FALSE)
+  if (any(ref0)) {
+    stop("Invalid reference: ", paste(x[ref0], collapse=", "))
   }
 
   rest <- trimws(rest)
