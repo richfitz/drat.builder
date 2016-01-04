@@ -38,12 +38,13 @@ git_init <- function(path=".", opts=character()) {
   call_git(c("init", opts, path))
 }
 
-## NOTE: this duplicates code elsewhere, with a coliding name, so will
-## take a little effort to update.  Moving from git2r to git via shell
-## will require rewiring this a bunch.
 git_add <- function(path, opts=character(), repo=NULL, force=FALSE) {
   if (force) {
     opts <- c(opts, "--force")
   }
   call_git(c("add", opts, path), workdir=repo)
+}
+
+git_remote_url <- function() {
+  call_git(c("ls-remote", "--get-url"))
 }

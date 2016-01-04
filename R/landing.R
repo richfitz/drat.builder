@@ -14,6 +14,15 @@
 update_landing_page <- function(packages, commit) {
   if (file.exists("index.dcf")) {
     dat <- read_dcf("index.dcf")
+
+    call_git(c("ls-remote", "--get-url"))
+
+    if (is.null(dat$username)) {
+      url <- git_remote_url()
+      url_re <- if (grepl("^git@", url)) "^.*?:" else "^.*?/"
+      dat$username <- dirname(sub(url_re, "", url))
+    }
+
     ## NOTE: I have a general version of this elsewhere:
     ok <- c("title", "description", "username")
     msg <- setdiff(ok, names(dat))
@@ -22,7 +31,6 @@ update_landing_page <- function(packages, commit) {
            paste(msg, collapse=", "))
     }
     log("page", dat$title)
-
 
     pkgs <- lapply(file.path(packages[, "path"], "DESCRIPTION"), read_dcf)
     pkgs_name <- vcapply(pkgs, "[[", "package")
