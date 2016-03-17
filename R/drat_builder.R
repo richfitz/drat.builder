@@ -377,7 +377,20 @@ init_library <- function(path) {
 }
 
 init_drat <- function(path) {
+  ## TODO: Hit metacran or something here to get the current R version
+  ## so that this can be bumped.  3.3 should last for the next year or
+  ## so though.
   dir.create(file.path(path, "src", "contrib"), FALSE, TRUE)
+  for (platform in c("windows", "macosx", "macosx/mavericks")) {
+    for (version in c("3.1", "3.2", "3.3")) {
+      p <- file.path(path, "bin", platform, "contrib", version)
+      pp <- file.path(p, "PACKAGES")
+      dir.create(p, FALSE, TRUE)
+      writeLines(character(0), pp)
+      writeLines_gz(character(0), paste0(pp, ".gz"))
+    }
+  }
+
   ## gitignore <- file.path(path, "src", ".gitignore")
   ## if (!file.exists(gitignore)) {
   ##   writeLines("!*.gz", gitignore)

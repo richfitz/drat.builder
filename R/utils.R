@@ -54,3 +54,9 @@ read_dcf <- function(x) {
   dat <- read.dcf(x)
   setNames(as.list(dat), tolower(colnames(dat)))
 }
+
+writeLines_gz <- function(text, filename, ...) {
+  con <- gzfile(filename)
+  on.exit(close(con))
+  writeLines(text, con, ...)
+}
