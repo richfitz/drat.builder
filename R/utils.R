@@ -19,9 +19,9 @@ call_system <- function(command, args, env=character(), max_lines=20,
     ## Truncate message:
     if (length(res) > max_lines) {
       n <- ceiling(max_lines * p)
-      res <- c(head(res, ceiling(max_lines - n)),
+      res <- c(utils::head(res, ceiling(max_lines - n)),
                sprintf("[[... %d lines dropped ...]]", length(res) - max_lines),
-               tail(res, ceiling(n)))
+               utils::tail(res, ceiling(n)))
     }
 
     ## compute the number of characters so far, including three new lines:
@@ -52,11 +52,17 @@ assert_tests_passed <- function(obj=.Last.value) {
 
 read_dcf <- function(x) {
   dat <- read.dcf(x)
-  setNames(as.list(dat), tolower(colnames(dat)))
+  set_names(as.list(dat), tolower(colnames(dat)))
 }
 
 writeLines_gz <- function(text, filename, ...) {
   con <- gzfile(filename)
   on.exit(close(con))
   writeLines(text, con, ...)
+}
+
+
+set_names <- function(x, names) {
+  names(x) <- names
+  x
 }

@@ -46,9 +46,9 @@ build_binaries <- function(packages, host, port, timeout=600, commit=TRUE,
   sha_bin <- status_bin[nms]
 
   i <- is.na(sha_bin) | sha_src != sha_bin
-  to_build <- setNames(names(nms)[i], nms[i])
+  to_build <- set_names(names(nms)[i], nms[i])
 
-  ok <- setNames(rep.int(TRUE, length(to_build)), to_build)
+  ok <- set_names(rep.int(TRUE, length(to_build)), to_build)
   for (p in to_build) {
     pkg <- pkgs[p, ]
     for (i in seq_len(n)) {

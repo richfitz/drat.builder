@@ -160,7 +160,7 @@ install_deps <- function(packages, lib=NULL) {
   ## TODO: How do we deal with non-CRAN versions here; some are likely
   ## to be found right here in the drat.
   packages_drat <- apply(packages, 1, package_name)
-  packages_cran <- rownames(available.packages())
+  packages_cran <- rownames(utils::available.packages())
 
   new_packages_cran <- setdiff(new_packages, packages_drat)
   packages_missing <- setdiff(new_packages_cran, packages_cran)
@@ -184,7 +184,7 @@ install_deps <- function(packages, lib=NULL) {
     ## looks like that might be supported in more recent drat
     ## versions.
     log("install", paste(new_packages_cran, collapse=" "))
-    install.packages(new_packages_cran, lib=lib, quiet=TRUE)
+    utils::install.packages(new_packages_cran, lib=lib, quiet=TRUE)
   }
 
   ## Not sure if this will always find deps
@@ -192,7 +192,7 @@ install_deps <- function(packages, lib=NULL) {
     log("install", paste(new_packages_drat, collapse=" "))
     pkgs <- names(packages_drat)[match(new_packages_drat, packages_drat)]
     pkgs_dirs <- packages[pkgs, "path_pkg"]
-    install.packages(pkgs_dirs, lib=lib, repos=NULL, type="source")
+    utils::install.packages(pkgs_dirs, lib=lib, repos=NULL, type="source")
   }
 
   ## Missing packages:
@@ -433,7 +433,7 @@ status_line <- function(p) {
 
 do_build <- function(p, defaults) {
   if (!is.na(p[["opts"]])) {
-    defaults <- modifyList(defaults, jsonlite::fromJSON(p[["opts"]]))
+    defaults <- utils::modifyList(defaults, jsonlite::fromJSON(p[["opts"]]))
   }
   args <- c(if (defaults$manual) character(0) else "--no-manual",
             if (defaults$vignettes) character(0) else "--no-build-vignettes")
