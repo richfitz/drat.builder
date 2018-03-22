@@ -17,5 +17,7 @@ RUN Rscript -e 'install.packages("https://github.com/richfitz/drat.builder/archi
 
 RUN Rscript -e 'drat.builder::install_script("/usr/local/bin")'
 
+WORKDIR /src
+
 ENTRYPOINT ["drat.builder"]
 CMD ["--no-build-vignettes", "--no-manual"]
