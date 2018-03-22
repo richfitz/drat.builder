@@ -76,8 +76,9 @@ build_binaries <- function(packages, host, port, timeout=600, commit=TRUE,
 build_binary_package <- function(p, root, host, port) {
   log("binary", sprintf("%s ==> http://%s:%s", p[["str"]], host, port))
   filename <- file.path(root, "src/contrib", package_zip(p))
-  res <- tryCatch(buildr::build_binaries(filename, host, port),
-                  error=function(e) NULL)
+  stop("binary building currently unsupported")
+  ## res <- tryCatch(buildr::build_binaries(filename, host, port),
+  ##                 error=function(e) NULL)
   if (is.null(res)) {
     log("ERROR", p[["str"]])
     FALSE
