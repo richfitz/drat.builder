@@ -50,7 +50,7 @@ build_binaries <- function(packages, host, port, timeout=600, commit=TRUE,
 
   ok <- set_names(rep.int(TRUE, length(to_build)), to_build)
   for (p in to_build) {
-    pkg <- pkgs[p, ]
+    pkg <- packages[p, ]
     for (i in seq_len(n)) {
       ok[[p]] <- ok[[p]] &&
         build_binary_package(pkg, root, host[[i]], port[[i]], ...)
@@ -79,6 +79,7 @@ build_binary_package <- function(p, root, host, port) {
   stop("binary building currently unsupported")
   ## res <- tryCatch(buildr::build_binaries(filename, host, port),
   ##                 error=function(e) NULL)
+  res <- NULL
   if (is.null(res)) {
     log("ERROR", p[["str"]])
     FALSE
