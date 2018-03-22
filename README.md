@@ -2,6 +2,9 @@
 
 [![Build Status](https://travis-ci.org/richfitz/drat.builder.png?branch=master)](https://travis-ci.org/richfitz/drat.builder)
 
+[![Docker Build Status](https://img.shields.io/docker/build/richfitz/drat.builder.svg)](https://hub.docker.com/r/richfitz/drat.builder)
+
+
 The idea here is to make it extremely easy to keep a [drat](https://github.com/eddelbuettel/drat) repository up to date.
 
 Suppose you have a drat that tracks a number of upstream github repos (here the *repos* are the package repositories and *drat repository* will be the drat itself).  Say, [reomoji](https://github.com/richfitz/remoji), [rfiglet](https://github.com/richfitz/rfiglet) and [cowsay](https://github.com/sckott/cowsay)
