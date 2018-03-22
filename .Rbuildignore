@@ -5,3 +5,4 @@
 ^Makefile$
 ^notes.md$
 ^drat.builder_.*\.tar.gz$
+^Dockerfile$
