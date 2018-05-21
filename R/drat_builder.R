@@ -319,6 +319,9 @@ update_drat1 <- function(p, commit, packages) {
       log("commit", p[["str"]])
       git_add("src/contrib/PACKAGES", force=TRUE, repo=path)
       git_add("src/contrib/PACKAGES.gz", force=TRUE, repo=path)
+      if (file.exists("src/contrib/PACKAGES.rds")) {
+        git_add("src/contrib/PACKAGES.rds", force=TRUE, repo=path)
+      }
       git_add(status_filename(packages), force=TRUE, repo=path)
       msg <- paste(package_name(p),
                    package_version(p),
