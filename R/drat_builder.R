@@ -388,11 +388,14 @@ init_drat <- function(path) {
                      "macosx/el-capitan")) {
     for (version in c("3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "4.0")) {
       p <- file.path(path, "bin", platform, "contrib", version)
+      pp <- file.path(p, "PACKAGES")
+      ppz <- paste0(pp, ".gz")
+      dir.create(p, FALSE, TRUE)
       if (!file.exists(pp)) {
-        pp <- file.path(p, "PACKAGES")
-        dir.create(p, FALSE, TRUE)
         writeLines(character(0), pp)
-        writeLines_gz(character(0), paste0(pp, ".gz"))
+      }
+      if (!file.exists(ppz)) {
+        writeLines_gz(character(0), ppz)
       }
     }
   }
