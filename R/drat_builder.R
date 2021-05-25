@@ -386,7 +386,7 @@ init_drat <- function(path) {
   dir.create(file.path(path, "src", "contrib"), FALSE, TRUE)
   for (platform in c("windows", "macosx", "macosx/mavericks",
                      "macosx/el-capitan")) {
-    for (version in c("3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "4.0")) {
+    for (version in c("3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "4.0", "4.1")) {
       p <- file.path(path, "bin", platform, "contrib", version)
       pp <- file.path(p, "PACKAGES")
       ppz <- paste0(pp, ".gz")
