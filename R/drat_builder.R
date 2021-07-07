@@ -362,7 +362,7 @@ package_sha <- function(p) {
 
 package_github_url <- function(p) {
   prefix <- "git@github.com:"
-  prefix <- "https://github.com/"
+#  prefix <- "https://github.com/"
   paste0(prefix, paste(p[["user"]], p[["repo"]], sep="/"), ".git")
 }
 
